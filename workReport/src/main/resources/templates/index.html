@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>作業報告書</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            max-width: 1200px;
+        }
+        .table-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-top: 20px;
+        }
+        .table {
+            margin-bottom: 0;
+        }
+        .table thead th {
+            background-color: #9DC45F;
+            color: white;
+            border: 1px solid #fff;
+            text-align: center;
+        }
+        .table td {
+            border: 1px solid #ddd;
+            background-color: #E8F3D6;
+            padding: 8px;
+        }
+        .table tr:last-child td {
+            background-color: #fff;
+            font-weight: bold;
+        }
+        .weekend td {
+            background-color: #F5F5F5;
+        }
+        .total-row {
+            background-color: #f8f9fa !important;
+        }
+        .table-row-clickable:hover {
+            cursor: pointer;
+            background-color: #f8f9fa;
+            transition: background-color 0.2s;
+        }
+        .nav-buttons {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        .btn-nav {
+            width: 40px;
+            height: 40px;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .month-title {
+            font-size: 1.5rem;
+            font-weight: 500;
+            color: #343a40;
+        }
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+        }
+        .modal-header {
+            background-color: #f8f9fa;
+            border-radius: 15px 15px 0 0;
+        }
+        .form-control {
+            border-radius: 8px;
+        }
+        .form-check-input:checked {
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <!-- Month Navigation -->
+        <div class="nav-buttons d-flex justify-content-between align-items-center mb-4">
+            <a th:href="@{/(year=${prevMonth.year},month=${prevMonth.monthValue})}" 
+               class="btn btn-outline-primary btn-nav">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            <h4 class="month-title mb-0" th:text="${currentMonth.year + '年' + currentMonth.monthValue + '月 作業報告書'}">
+                2024年7月 作業報告書
+            </h4>
+            <a th:href="@{/(year=${nextMonth.year},month=${nextMonth.monthValue})}" 
+               class="btn btn-outline-primary btn-nav">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+        </div>
+
+        <!-- Work Report Table -->
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>日(曜日)</th>
+                            <th>開始時間</th>
+                            <th>終了時間</th>
+                            <th>休憩時間</th>
+                            <th>作業内容</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="report, stat : ${reports}" 
+                            class="table-row-clickable"
+                            th:classappend="${#temporals.dayOfWeek(report.reportDate) >= 6} ? 'weekend' : ''"
+                            th:data-date="${report.reportDate}"
+                            onclick="showReportModal(this.getAttribute('data-date'))">
+                            <td th:text="${#temporals.format(report.reportDate, 'd') + '(' + #temporals.format(report.reportDate, 'E') + ')'}"></td>
+                            <td th:text="${report.startTime != null ? report.startTime : '-'}"></td>
+                            <td th:text="${report.endTime != null ? report.endTime : '-'}"></td>
+                            <td th:text="${report.breakTime != null ? report.breakTime : '-'}"></td>
+                            <td th:text="${report.description != null ? report.description : '-'}"></td>
+                        </tr>
+                        <!-- Total row -->
+                        <tr class="total-row">
+                            <td>合計</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td>-</td>
+                            <td th:text="${totalHours != null ? totalHours : '0'} + ' 時間'"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Modal -->
+    <div class="modal fade" id="reportModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header justify-content-center">
+                    <h5 class="modal-title" id="modalDate"></h5>
+                    <button type="button" class="btn-close position-absolute end-0 me-3" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="reportForm">
+                        <input type="hidden" id="reportDate">
+                        
+                        <!-- Radio Buttons -->
+                        <div class="mb-4 text-center">
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="workStatus" 
+                                       id="workStatus1" value="勤務" checked>
+                                <label class="form-check-label" for="workStatus1">勤務</label>
+                            </div>
+                            <div class="form-check form-check-inline">
+                                <input class="form-check-input" type="radio" name="workStatus" 
+                                       id="workStatus2" value="欠勤">
+                                <label class="form-check-label" for="workStatus2">欠勤</label>
+                            </div>
+                        </div>
+
+                        <!-- Time Inputs in one row -->
+                        <div class="row align-items-end mb-4">
+                            <div class="col">
+                                <label class="form-label">開始時間</label>
+                                <input type="time" class="form-control" id="startTime" 
+                                       step="300" pattern="[0-9]{2}:[0-9]{2}">
+                            </div>
+                            <div class="col-auto pt-2">
+                                ～
+                            </div>
+                            <div class="col">
+                                <label class="form-label">終了時間</label>
+                                <input type="time" class="form-control" id="endTime" 
+                                       step="300" pattern="[0-9]{2}:[0-9]{2}">
+                            </div>
+                            <div class="col">
+                                <label class="form-label">休憩時間</label>
+                                <input type="time" class="form-control" id="breakTime" 
+                                       step="300" pattern="[0-9]{2}:[0-9]{2}">
+                            </div>
+                        </div>
+
+                        <!-- Work Description -->
+                        <div class="mb-4">
+                            <textarea class="form-control" id="description" rows="4" 
+                                    placeholder="作業内容を入力"></textarea>
+                        </div>
+
+                        <!-- Buttons -->
+                        <div class="text-end">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                キャンセル
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="saveReport()">
+                                登録
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let reportModal;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            reportModal = new bootstrap.Modal(document.getElementById('reportModal'));
+        });
+
+        function showReportModal(dateStr) {
+            const row = document.querySelector(`tr[data-date="${dateStr}"]`);
+            const startTime = row.children[1].textContent.trim();
+            const endTime = row.children[2].textContent.trim();
+            const breakTime = row.children[3].textContent.trim();
+            const description = row.children[4].textContent.trim();
+
+            function formatTime(time) {
+                if (time === '-') return '';
+                if (time.length > 5) {
+                    return time.substring(0, 5);
+                }
+                return time;
+            }
+
+            document.getElementById('startTime').value = formatTime(startTime);
+            document.getElementById('endTime').value = formatTime(endTime);
+            document.getElementById('breakTime').value = formatTime(breakTime);
+            document.getElementById('description').value = description !== '-' ? description : '';
+
+            const reportDate = new Date(dateStr);
+            const options = { 
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'short'
+            };
+            const formattedDate = new Intl.DateTimeFormat('ja-JP', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'short'
+            }).format(reportDate);
+            
+            document.getElementById('modalDate').textContent = formattedDate;
+            document.getElementById('reportDate').value = dateStr;
+            
+            if (startTime === '-' && endTime === '-' && breakTime === '-') {
+                document.getElementById('workStatus2').checked = true;
+            } else {
+                document.getElementById('workStatus1').checked = true;
+            }
+            
+            reportModal.show();
+        }
+
+        function saveReport() {
+            const formData = {
+                reportDate: document.getElementById('reportDate').value,
+                workStatus: document.querySelector('input[name="workStatus"]:checked').value,
+                startTime: document.getElementById('startTime').value || null,
+                endTime: document.getElementById('endTime').value || null,
+                breakTime: document.getElementById('breakTime').value || null,
+                description: document.getElementById('description').value || ''
+            };
+
+            if (formData.startTime) formData.startTime = formData.startTime.substring(0, 5);
+            if (formData.endTime) formData.endTime = formData.endTime.substring(0, 5);
+            if (formData.breakTime) formData.breakTime = formData.breakTime.substring(0, 5);
+
+            fetch('/api/reports', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(text);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                reportModal.hide();
+                window.location.reload();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('保存に失敗しました: ' + error.message);
+            });
+        }
+    </script>
+</body>
+</html> 
